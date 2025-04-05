@@ -13,9 +13,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import uragent.app.midiplayer.models.MidiFile
 import uragent.app.midiplayer.models.Playlist
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.update
-import java.io.File
 import android.app.Application
 import android.bluetooth.BluetoothManager
 import kotlinx.coroutines.delay
@@ -311,6 +309,17 @@ class BluetoothViewModel(application: Application) : AndroidViewModel(applicatio
 
     fun showSongList() {
         // Navigate to song list (implement navigation logic)
+    }
+
+    fun sendCommand(command: String) {
+        bluetoothService.sendCommand(command)
+    }
+
+    fun adjustTempo(change: Int) {
+        val currentTempo = _tempo.value ?: 120
+        val newTempo = (currentTempo + change).coerceIn(60, 240) // Limit tempo between 60 and 240 BPM
+        _tempo.value = newTempo
+        bluetoothService.sendCommand("TEMPO:$newTempo")
     }
 
     override fun onCleared() {

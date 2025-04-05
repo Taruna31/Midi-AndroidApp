@@ -4,26 +4,29 @@ import android.net.Uri
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import uragent.app.midiplayer.BluetoothViewModel
-import uragent.app.midiplayer.R
 import uragent.app.midiplayer.models.MidiFile
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalFocusManager
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchScreen(
-    viewModel: BluetoothViewModel,
-    onNavigateBack: () -> Unit
+    viewModel: BluetoothViewModel
 ) {
     val filteredMidiFiles by viewModel.filteredMidiFiles.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
@@ -31,7 +34,13 @@ fun SearchScreen(
     val backgroundImagePath by viewModel.backgroundImagePath.collectAsState()
     
     var query by remember { mutableStateOf(searchQuery) }
-    
+    val focusRequester = remember { FocusRequester() }
+    val focusManager = LocalFocusManager.current
+
+    LaunchedEffect(Unit) {
+        focusRequester.requestFocus()
+    }
+
     LaunchedEffect(query) {
         viewModel.searchMidiFiles(query)
     }
@@ -41,12 +50,11 @@ fun SearchScreen(
             TopAppBar(
                 title = { Text("Search") },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back"
-                        )
-                    }
+                    Icon(
+                        Icons.Filled.Search,
+                        contentDescription = "Icon Search Section",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer
@@ -91,28 +99,53 @@ fun SearchScreen(
                 }
                 
                 // Search bar
-                OutlinedTextField(
+                TextField(
                     value = query,
-                    onValueChange = { query = it },
-                    label = { Text("Search MIDI Files") },
+                    onValueChange = {
+                        query = it
+                        viewModel.searchMidiFiles(it)
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp)
+                        .focusRequester(focusRequester),
+                    placeholder = { Text("Search MIDI files") },
                     leadingIcon = {
                         Icon(
-                            imageVector = Icons.Default.Search,
-                            contentDescription = "Search"
+                            Icons.Default.Search,
+                            contentDescription = "Search",
+                            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                         )
                     },
                     trailingIcon = {
                         if (query.isNotEmpty()) {
-                            IconButton(onClick = { query = "" }) {
+                            IconButton(onClick = {
+                                query = ""
+                                viewModel.searchMidiFiles("")
+                                focusManager.clearFocus()
+                            }) {
                                 Icon(
-                                    imageVector = Icons.Default.Clear,
-                                    contentDescription = "Clear"
+                                    Icons.Default.Clear,
+                                    contentDescription = "Clear search",
+                                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                                 )
                             }
                         }
                     },
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = connectionState
+                    colors = TextFieldDefaults.textFieldColors(
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        focusedIndicatorColor = MaterialTheme.colorScheme.primary,
+                        unfocusedIndicatorColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
+                    ),
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(
+                        imeAction = ImeAction.Search
+                    ),
+                    keyboardActions = KeyboardActions(
+                        onSearch = {
+                            focusManager.clearFocus()
+                        }
+                    )
                 )
                 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -143,7 +176,7 @@ fun SearchScreen(
                         items(filteredMidiFiles) { midiFile ->
                             SearchResultItem(
                                 midiFile = midiFile,
-                                onPlay = { viewModel.playMidi(midiFile) }
+                                onClick = { viewModel.playMidi(midiFile) }
                             )
                         }
                     }
@@ -156,53 +189,41 @@ fun SearchScreen(
 @Composable
 fun SearchResultItem(
     midiFile: MidiFile,
-    onPlay: () -> Unit
+    onClick: () -> Unit
 ) {
-    Card(
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp)
+            .padding(vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // File icon
+        Icon(
+            Icons.Default.AccountBox,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(24.dp)
+        )
+        
+        Spacer(modifier = Modifier.width(16.dp))
+        
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = midiFile.name,
+                style = MaterialTheme.typography.bodyLarge
+            )
+            Text(
+                text = "Duration: ${midiFile.duration}s",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+            )
+        }
+        
+        IconButton(onClick = onClick) {
             Icon(
-                painter = painterResource(id = R.drawable.music_note),
-                contentDescription = null,
+                Icons.Default.PlayArrow,
+                contentDescription = "Play",
                 tint = MaterialTheme.colorScheme.primary
             )
-            
-            // File info
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(horizontal = 16.dp)
-            ) {
-                Text(
-                    text = midiFile.name,
-                    style = MaterialTheme.typography.bodyLarge
-                )
-                
-                if (midiFile.duration > 0) {
-                    Text(
-                        text = formatDuration(midiFile.duration),
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
-            }
-            
-            // Play button
-            IconButton(onClick = onPlay) {
-                Icon(
-                    imageVector = Icons.Default.PlayArrow,
-                    contentDescription = "Play",
-                    tint = MaterialTheme.colorScheme.primary
-                )
-            }
         }
     }
 } 

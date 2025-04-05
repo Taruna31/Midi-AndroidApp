@@ -1,9 +1,9 @@
 package uragent.app.midiplayer.ui
 
 import android.net.Uri
+import android.util.Log
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -28,12 +28,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.platform.LocalDensity
 import kotlin.math.roundToInt
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PlayerScreen(
     viewModel: BluetoothViewModel,
-    onNavigateBack: () -> Unit
+    onNavigateToSettings: () -> Unit
 ) {
     val midiFiles by viewModel.midiFiles.collectAsState()
     val currentMidi by viewModel.currentMidi.collectAsState()
@@ -73,12 +75,11 @@ fun PlayerScreen(
             TopAppBar(
                 title = { Text("Player") },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back"
-                        )
-                    }
+                    Icon(
+                        Icons.Filled.Face,
+                        contentDescription = "Bluetooth Device",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
                 },
                 actions = {
                     IconButton(onClick = { /* Toggle Bluetooth */ }) {
@@ -88,8 +89,11 @@ fun PlayerScreen(
                             contentDescription = "Bluetooth"
                         )
                     }
-                    IconButton(onClick = { /* Background selection */ }) {
-                        Text("BACKGROUND", style = MaterialTheme.typography.labelMedium)
+                    IconButton(onClick = onNavigateToSettings) {
+                        Icon(
+                            imageVector = Icons.Default.Settings,
+                            contentDescription = "Settings"
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -106,6 +110,18 @@ fun PlayerScreen(
                     contentDescription = "Background",
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop
+                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            Brush.verticalGradient(
+                                colors = listOf(
+                                    Color(0x80800080),
+                                    Color(0xA0400080)
+                                )
+                            )
+                        )
                 )
             }
 
@@ -235,6 +251,23 @@ fun PlayerScreen(
                     horizontalArrangement = Arrangement.SpaceEvenly,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    // Tempo decrease button
+                    IconButton(
+                        onClick = { viewModel.adjustTempo(-1) },
+                        modifier = Modifier
+                            .size(48.dp)
+                            .background(
+                                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.7f),
+                                shape = CircleShape
+                            )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.KeyboardArrowDown,
+                            contentDescription = "Decrease Tempo",
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+
                     IconButton(
                         onClick = { viewModel.previousTrack() },
                         modifier = Modifier.size(64.dp)
@@ -278,40 +311,26 @@ fun PlayerScreen(
                             modifier = Modifier.size(48.dp)
                         )
                     }
-                }
 
-                Spacer(modifier = Modifier.height(32.dp))
-
-                // Piano key buttons
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceEvenly
-                ) {
-                    repeat(12) { index ->
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(80.dp)
-                                .padding(horizontal = 2.dp)
-                                .background(
-                                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.7f),
-                                    shape = RoundedCornerShape(bottomStart = 8.dp, bottomEnd = 8.dp)
-                                )
-                                .clickable { /* Handle piano key press */ }
-                        ) {
-                            Text(
-                                text = "${index + 1}",
-                                modifier = Modifier
-                                    .align(Alignment.BottomCenter)
-                                    .padding(bottom = 8.dp),
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSurface
+                    // Tempo increase button
+                    IconButton(
+                        onClick = { viewModel.adjustTempo(1) },
+                        modifier = Modifier
+                            .size(48.dp)
+                            .background(
+                                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.7f),
+                                shape = CircleShape
                             )
-                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.KeyboardArrowUp,
+                            contentDescription = "Increase Tempo",
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(32.dp))
 
                 // Upload buttons
                 Row(
@@ -323,7 +342,9 @@ fun PlayerScreen(
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.7f)
                         ),
-                        modifier = Modifier.weight(1f).padding(horizontal = 8.dp)
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(horizontal = 8.dp)
                     ) {
                         Text("PILIH NADA UPLOAD")
                     }
@@ -333,10 +354,21 @@ fun PlayerScreen(
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.7f)
                         ),
-                        modifier = Modifier.weight(1f).padding(horizontal = 8.dp)
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(horizontal = 8.dp)
                     ) {
                         Text("UPLOAD NADA")
                     }
+                }
+
+                // Control buttons area
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+
                 }
             }
         }
