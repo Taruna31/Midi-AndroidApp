@@ -1,4 +1,4 @@
-package uragent.app.midiplayer.ui
+package uragent.app.Midi.ui
 
 import android.net.Uri
 import androidx.compose.foundation.clickable
@@ -17,14 +17,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import coil.compose.AsyncImage
 import kotlinx.coroutines.launch
-import uragent.app.midiplayer.BluetoothViewModel
-import uragent.app.midiplayer.models.MidiFile
-import uragent.app.midiplayer.models.Playlist
+import uragent.app.Midi.BluetoothViewModel
+import uragent.app.Midi.models.MidiFile
+import uragent.app.Midi.models.Playlist
 import androidx.compose.foundation.Image
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.res.painterResource
-import uragent.app.midiplayer.R
+import uragent.app.Midi.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

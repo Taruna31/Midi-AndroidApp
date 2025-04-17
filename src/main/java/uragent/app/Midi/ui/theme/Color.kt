@@ -1,4 +1,4 @@
-package uragent.app.midiplayer.ui.theme
+package uragent.app.Midi.ui.theme
 
 import androidx.compose.ui.graphics.Color
 

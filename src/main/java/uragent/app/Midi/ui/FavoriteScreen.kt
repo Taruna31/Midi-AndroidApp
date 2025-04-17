@@ -1,4 +1,4 @@
-package uragent.app.midiplayer.ui
+package uragent.app.Midi.ui
 
 import android.net.Uri
 import androidx.compose.foundation.layout.*
@@ -15,8 +15,8 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
-import uragent.app.midiplayer.BluetoothViewModel
-import uragent.app.midiplayer.models.MidiFile
+import uragent.app.Midi.BluetoothViewModel
+import uragent.app.Midi.models.MidiFile
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

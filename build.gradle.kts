@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    namespace = "uragent.app.midiplayer"
+    namespace = "uragent.app.Midi"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "uragent.app.midiplayer"
+        applicationId = "uragent.app.Midi"
         minSdk = 28
         targetSdk = 36
         versionCode = 1

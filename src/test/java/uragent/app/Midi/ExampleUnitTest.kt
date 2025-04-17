@@ -1,4 +1,4 @@
-package uragent.app.midiplayer
+package uragent.app.Midi
 
 import org.junit.Test
 

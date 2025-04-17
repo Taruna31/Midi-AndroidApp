@@ -1,7 +1,7 @@
-package uragent.app.midiplayer
+package uragent.app.Midi
 
 import android.annotation.SuppressLint
-import uragent.app.midiplayer.utils.BluetoothHelper
+import uragent.app.Midi.utils.BluetoothHelper
 import android.bluetooth.BluetoothDevice
 import android.content.Context
 import android.util.Log
@@ -11,11 +11,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import uragent.app.midiplayer.models.MidiFile
-import uragent.app.midiplayer.models.Playlist
-import kotlinx.coroutines.Dispatchers
+import uragent.app.Midi.models.MidiFile
+import uragent.app.Midi.models.Playlist
 import kotlinx.coroutines.flow.update
-import java.io.File
 import android.app.Application
 import android.bluetooth.BluetoothManager
 import kotlinx.coroutines.delay
@@ -73,17 +71,13 @@ class BluetoothViewModel(application: Application) : AndroidViewModel(applicatio
     private val _totalDuration = MutableStateFlow<Int?>(null)
     val totalDuration: StateFlow<Int?> = _totalDuration.asStateFlow()
 
-    init {
-        viewModelScope.launch {
-            bluetoothService.receivedData.collect { data ->
-                // Process received data from ESP32
-                processReceivedData(data)
-            }
-        }
+    // Navigation state
+    private val _showSongList = MutableStateFlow(false)
+    val showSongList: StateFlow<Boolean> = _showSongList.asStateFlow()
 
-        // Initialize with some sample data
-        // In a real app, you'd load this from SharedPreferences or a database
-        initializeSampleData()
+    init {
+        // Start collecting received data from BluetoothService
+        refresh()
     }
 
     private fun initializeSampleData() {
@@ -155,30 +149,28 @@ class BluetoothViewModel(application: Application) : AndroidViewModel(applicatio
         _isPlaying.value = true
     }
 
-    fun stopMidi() {
-        bluetoothService.sendCommand("STOP")
-        _isPlaying.value = false
-    }
-
-    fun nextMidi() {
-        val currentPlaylist = _currentPlaylist.value ?: return
-        val currentIndex = currentPlaylist.files.indexOfFirst { it.name == _currentMidi.value?.name }
-
-        if (currentIndex >= 0 && currentIndex < currentPlaylist.files.size - 1) {
-            val nextMidi = currentPlaylist.files[currentIndex + 1]
-            playMidi(nextMidi)
-        }
-    }
-
-    fun previousMidi() {
-        val currentPlaylist = _currentPlaylist.value ?: return
-        val currentIndex = currentPlaylist.files.indexOfFirst { it.name == _currentMidi.value?.name }
-
-        if (currentIndex > 0) {
-            val prevMidi = currentPlaylist.files[currentIndex - 1]
-            playMidi(prevMidi)
-        }
-    }
+//    fun stopMidi() {
+//        bluetoothService.sendCommand("STOP")
+//        _isPlaying.value = false
+//    }
+//    fun nextMidi() {
+//        val currentPlaylist = _currentPlaylist.value ?: return
+//        val currentIndex = currentPlaylist.files.indexOfFirst { it.name == _currentMidi.value?.name }
+//
+//        if (currentIndex >= 0 && currentIndex < currentPlaylist.files.size - 1) {
+//            val nextMidi = currentPlaylist.files[currentIndex + 1]
+//            playMidi(nextMidi)
+//        }
+//    }
+//    fun previousMidi() {
+//        val currentPlaylist = _currentPlaylist.value ?: return
+//        val currentIndex = currentPlaylist.files.indexOfFirst { it.name == _currentMidi.value?.name }
+//
+//        if (currentIndex > 0) {
+//            val prevMidi = currentPlaylist.files[currentIndex - 1]
+//            playMidi(prevMidi)
+//        }
+//    }
 
     fun deleteMidi(midiFile: MidiFile) {
         bluetoothService.sendCommand("DELETE:${midiFile.name}")
@@ -237,22 +229,22 @@ class BluetoothViewModel(application: Application) : AndroidViewModel(applicatio
         if (data.startsWith("FILES:")) {
             // Process list of files
             val filesData = data.removePrefix("FILES:")
-            val filesList = filesData.split(",")
+            val filesList = filesData.split("|")
 
             val midiFiles = filesList.map { fileName ->
                 MidiFile(name = fileName)
             }
 
             _midiFiles.value = midiFiles
-            _filteredMidiFiles.value = midiFiles
-        } else if (data.startsWith("PLAYING:")) {
-            // Update currently playing file
-            val fileName = data.removePrefix("PLAYING:")
-            _currentMidi.value = _midiFiles.value.find { it.name == fileName }
-            _isPlaying.value = true
-        } else if (data == "STOPPED") {
-            _isPlaying.value = false
-        }
+            _filteredMidiFiles.value = midiFiles}
+//          else if (data.startsWith("PLAYING:")) {
+//            // Update currently playing file
+//            val fileName = data.removePrefix("PLAYING:")
+//            _currentMidi.value = _midiFiles.value.find { it.name == fileName }
+//            _isPlaying.value = true
+//        } else if (data == "STOPPED") {
+//            _isPlaying.value = false
+//        }
     }
 
     fun startPlayback() {
@@ -299,18 +291,38 @@ class BluetoothViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
+    // One times used
     fun refresh() {
         viewModelScope.launch {
             getAvailableDevices()
             // Refresh MIDI files list from ESP32
             bluetoothService.getMidiFiles()?.let { files ->
+                Log.i(TAG,"RECEIVED: $_midiFiles")
                 _midiFiles.value = files
             }
         }
     }
 
-    fun showSongList() {
-        // Navigate to song list (implement navigation logic)
+    // Continously listen for the change
+    fun synchronize() {
+        viewModelScope.launch {
+            bluetoothService.receivedData.collect { data ->
+                // Process received data from ESP32
+                processReceivedData(data)
+            }
+        }
+    }
+
+    fun adjustTempo(change: Int) {
+        val currentTempo = _tempo.value ?: 1
+        val newTempo = (currentTempo + change).coerceIn(1, 9) // Limit speed between x1 and x9
+        _tempo.value = newTempo
+        viewModelScope.launch {
+            _currentMidi.value = _currentMidi.value?.copy(temp = newTempo)
+            _currentMidi.value?.let { midi ->
+                bluetoothService.adjustTemp(midi)
+            }
+        }
     }
 
     override fun onCleared() {

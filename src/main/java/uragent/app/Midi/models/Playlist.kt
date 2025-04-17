@@ -1,4 +1,4 @@
-package uragent.app.midiplayer.models
+package uragent.app.Midi.models
 
 import java.util.UUID
 

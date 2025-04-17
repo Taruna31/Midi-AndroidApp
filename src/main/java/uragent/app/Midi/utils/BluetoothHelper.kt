@@ -1,4 +1,4 @@
-package uragent.app.midiplayer.utils
+package uragent.app.Midi.utils
 
 import android.Manifest
 import android.bluetooth.BluetoothAdapter

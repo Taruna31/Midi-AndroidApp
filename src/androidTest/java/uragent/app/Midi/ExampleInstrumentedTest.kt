@@ -1,4 +1,4 @@
-package uragent.app.midiplayer
+package uragent.app.Midi
 
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.ext.junit.runners.AndroidJUnit4

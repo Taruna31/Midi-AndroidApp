@@ -1,4 +1,4 @@
-package uragent.app.midiplayer
+package uragent.app.Midi
 
 import android.annotation.SuppressLint
 import android.bluetooth.BluetoothAdapter
@@ -10,13 +10,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.withContext
-import uragent.app.midiplayer.utils.BluetoothHelper
+import uragent.app.Midi.utils.BluetoothHelper
 import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
 import java.util.UUID
 import kotlinx.coroutines.delay
-import uragent.app.midiplayer.models.MidiFile
+import uragent.app.Midi.models.MidiFile
 
 class BluetoothService(private val context: Context) {
     private val TAG = "BluetoothService"
@@ -42,11 +42,11 @@ class BluetoothService(private val context: Context) {
             Log.e(TAG, "Bluetooth not supported")
             return@withContext false
         }
-        
+
         if (!BluetoothHelper.hasBluetoothPermissions(context)) {
-             Log.e(TAG, "Missing Bluetooth permissions")
-             // Consider informing the user or requesting permissions
-             return@withContext false
+            Log.e(TAG, "Missing Bluetooth permissions")
+            // Consider informing the user or requesting permissions
+            return@withContext false
         }
 
         bluetoothAdapter = BluetoothAdapter.getDefaultAdapter() // Re-fetch in case it changed
@@ -54,7 +54,7 @@ class BluetoothService(private val context: Context) {
             Log.e(TAG, "Bluetooth adapter is null or disabled")
             return@withContext false
         }
-        
+
         try {
             val device: BluetoothDevice = bluetoothAdapter!!.getRemoteDevice(address)
             // Cancel discovery as it otherwise slows down the connection.
@@ -84,13 +84,23 @@ class BluetoothService(private val context: Context) {
 
         val buffer = ByteArray(1024)
         var bytes: Int
+        val stringBuilder = StringBuilder()
 
         while (isConnected) {
             try {
                 bytes = inputStream!!.read(buffer)
-                val data = String(buffer, 0, bytes)
-                _receivedData.value = data
-                Log.d(TAG, "Received: $data")
+                if (bytes > 0) {
+                    val data = String(buffer, 0, bytes)
+                    stringBuilder.append(data)
+
+                    // Check if both FILES and DURATION are in the accumulated data
+                    if (stringBuilder.contains("FILES:") && stringBuilder.contains("DURATION:")) {
+                        _receivedData.value = stringBuilder.toString()
+                        stringBuilder.clear() // Reset for next response
+                    }
+
+                    Log.d(TAG, "Accumulated: ${stringBuilder}")
+                }
             } catch (e: IOException) {
                 Log.e(TAG, "Error reading: ${e.message}")
                 isConnected = false
@@ -99,6 +109,7 @@ class BluetoothService(private val context: Context) {
             }
         }
     }
+
 
     fun sendCommand(command: String): Boolean {
         if (!isConnected) {
@@ -118,12 +129,28 @@ class BluetoothService(private val context: Context) {
         }
     }
 
-    suspend fun playMidi(midiFile: MidiFile): Boolean {
-        return sendCommand("PLAY:${midiFile.name}")
+    fun playMidi(midiFile: MidiFile): Boolean {
+        // Extract index between square brackets
+        val regex = """\[(\d+)]""".toRegex()
+        val match = regex.find(midiFile.name)
+
+        val index = match?.groupValues?.get(1)  // Just the number inside brackets
+        Log.i(TAG, "PLAY:$index:TEMP:${midiFile.temp}\n")
+        return if (index != null) {
+            sendCommand("PLAY:$index:TEMP:${midiFile.temp}\n")
+        } else {
+            Log.e(TAG, "Failed to extract index from name: ${midiFile.name}")
+            false
+        }
     }
 
     fun stopMidi(): Boolean {
         return sendCommand("STOP")
+    }
+
+    fun adjustTemp(midiFile: MidiFile): Boolean {
+        Log.i(TAG, "TEMP:${midiFile.temp}\n")
+        return sendCommand("TEMP:${midiFile.temp}\n")
     }
 
     suspend fun getMidiFiles(): List<MidiFile>? {
@@ -137,22 +164,46 @@ class BluetoothService(private val context: Context) {
             return null
         }
 
+        var nameList: List<String>? = null
+        var durationList: List<String>? = null
+
         // Wait for response with timeout
         var timeoutCounter = 0
         while (timeoutCounter < 10) {
             val data = _receivedData.value
-            if (data.startsWith("FILES:")) {
-                val filesData = data.removePrefix("FILES:")
-                val filesList = filesData.split(",")
-                return filesList.map { fileName ->
-                    MidiFile(name = fileName.trim())
+            Log.d(TAG, "Raw data: $data")
+
+            // Split received data by newline to parse multiple lines
+            val parts = data.split("\n")
+            for (part in parts) {
+                if (part.startsWith("FILES:")) {
+                    val filesData = part.removePrefix("FILES:")
+                    nameList = filesData.split("|").map { it.trim() }
+                    Log.i(TAG, "Received NAMES: $nameList")
+                }
+
+                if (part.startsWith("DURATION:")) {
+                    val durationData = part.removePrefix("DURATION:")
+                    durationList = durationData.split("|").map { it.trim() }
+                    Log.i(TAG, "Received DURATIONS: $durationList")
                 }
             }
+
+            // If both lists are ready, build the result
+            if (nameList != null && durationList != null) {
+                val result = nameList.mapIndexed { index, name ->
+                    val dur = durationList.getOrNull(index)?.toIntOrNull() ?: 0
+                    MidiFile(name = name, duration = dur)
+                }
+                Log.i("Bluetooth", "Final parsed MIDI list: $result")
+                return result
+            }
+
             delay(500)
             timeoutCounter++
         }
 
-        Log.e(TAG, "Timeout waiting for file list")
+        Log.e("Bluetooth", "Timeout waiting for file list")
         return null
     }
 

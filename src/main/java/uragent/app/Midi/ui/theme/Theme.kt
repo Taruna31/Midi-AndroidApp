@@ -1,4 +1,4 @@
-package uragent.app.midiplayer.ui.theme
+package uragent.app.Midi.ui.theme
 
 import android.app.Activity
 import android.os.Build

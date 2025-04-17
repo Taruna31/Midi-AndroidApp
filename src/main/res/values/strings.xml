@@ -1,4 +1,9 @@
 <resources>
     <string name="app_name">Midi Player</string>
     <string name="title_activity_main">MainActivity</string>
+    <string name="connection_status_connected">Terhubung dengan ESP32</string>
+    <string name="connection_status_disconnected">Belum Terhubung dengan ESP32</string>
+    <string name="state_song_not_selected">Pilih lagu untuk dimainkan!</string>
+    <string name="select_midi_to_upload">PILIH NADA UPLOAD</string>
+    <string name="upload_nada">UPLOAD NADA</string>
 </resources>

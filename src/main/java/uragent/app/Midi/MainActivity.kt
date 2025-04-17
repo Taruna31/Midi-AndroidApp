@@ -1,4 +1,4 @@
-package uragent.app.midiplayer
+package uragent.app.Midi
 
 import android.Manifest
 import android.os.Build
@@ -19,14 +19,14 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import uragent.app.midiplayer.ui.FavoriteScreen
-import uragent.app.midiplayer.ui.HomeScreen
-import uragent.app.midiplayer.ui.PlayerScreen
-import uragent.app.midiplayer.ui.PlaylistScreen
-import uragent.app.midiplayer.ui.SearchScreen
-import uragent.app.midiplayer.ui.SettingsScreen
-import uragent.app.midiplayer.ui.theme.MidiPlayerTheme
-import uragent.app.midiplayer.utils.BluetoothHelper
+import uragent.app.Midi.ui.FavoriteScreen
+import uragent.app.Midi.ui.HomeScreen
+import uragent.app.Midi.ui.PlayerScreen
+import uragent.app.Midi.ui.PlaylistScreen
+import uragent.app.Midi.ui.SearchScreen
+import uragent.app.Midi.ui.SettingsScreen
+import uragent.app.Midi.ui.theme.MidiPlayerTheme
+import uragent.app.Midi.utils.BluetoothHelper
 
 class MainActivity : ComponentActivity() {
 

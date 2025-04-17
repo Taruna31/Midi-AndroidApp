@@ -1,4 +1,4 @@
-package uragent.app.midiplayer.ui
+package uragent.app.Midi.ui
 
 import android.app.Activity
 import android.content.Intent
@@ -20,9 +20,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
-import uragent.app.midiplayer.BluetoothViewModel
-import uragent.app.midiplayer.R
-import uragent.app.midiplayer.utils.BluetoothHelper
+import uragent.app.Midi.BluetoothViewModel
+import uragent.app.Midi.R
+import uragent.app.Midi.utils.BluetoothHelper
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

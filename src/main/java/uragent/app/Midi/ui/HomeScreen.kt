@@ -1,4 +1,4 @@
-package uragent.app.midiplayer.ui
+package uragent.app.Midi.ui
 
 import android.bluetooth.BluetoothDevice
 import androidx.compose.foundation.clickable
@@ -15,9 +15,9 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
-import uragent.app.midiplayer.BluetoothViewModel
-import uragent.app.midiplayer.R
-import uragent.app.midiplayer.utils.BluetoothHelper
+import uragent.app.Midi.BluetoothViewModel
+import uragent.app.Midi.R
+import uragent.app.Midi.utils.BluetoothHelper
 import android.net.Uri
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -25,6 +25,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import coil.compose.AsyncImage
 import android.content.Context
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -98,13 +99,13 @@ fun HomeScreen(
                 // Status message
                 if (connectionState) {
                     Text(
-                        "Connected to ESP32",
+                        text = stringResource(R.string.connection_status_connected),
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.primary
                     )
                 } else {
                     Text(
-                        "Not connected to ESP32",
+                        text = stringResource(R.string.connection_status_disconnected),
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.error
                     )
