@@ -34,7 +34,7 @@ fun HomeScreen(
     onNavigateToPlayer: () -> Unit,
     onNavigateToPlaylist: () -> Unit,
     onNavigateToSearch: () -> Unit,
-    onNavigateToFavorites: () -> Unit,
+//    onNavigateToFavorites: () -> Unit,
     onNavigateToSettings: () -> Unit
 ) {
     val connectionState by viewModel.connectionState.collectAsState()
@@ -115,30 +115,30 @@ fun HomeScreen(
                 
                 // Menu options
                 MenuOption(
-                    title = "Play Music",
+                    title = "Putar Lagu",
                     icon = Icons.Default.PlayArrow,
                     onClick = onNavigateToPlayer,
                     enabled = connectionState
                 )
                 
                 MenuOption(
-                    title = "Playlists",
+                    title = "Koleksi",
                     icon = Icons.AutoMirrored.Filled.ArrowBack,
                     onClick = onNavigateToPlaylist
                 )
                 
                 MenuOption(
-                    title = "Search",
+                    title = "Pencarian",
                     icon = Icons.Default.Search,
                     onClick = onNavigateToSearch,
                     enabled = connectionState
                 )
                 
-                MenuOption(
-                    title = "Favorites",
-                    icon = Icons.Default.Favorite,
-                    onClick = onNavigateToFavorites
-                )
+//                MenuOption(
+//                    title = "Favorit",
+//                    icon = Icons.Default.Favorite,
+//                    onClick = onNavigateToFavorites
+//                )
             }
         }
     }

@@ -71,7 +71,7 @@ fun AppNavigation() {
                 onNavigateToPlayer = { navController.navigate("player") },
                 onNavigateToPlaylist = { navController.navigate("playlist") },
                 onNavigateToSearch = { navController.navigate("search") },
-                onNavigateToFavorites = { navController.navigate("favorites") },
+//                onNavigateToFavorites = { navController.navigate("favorites") },
                 onNavigateToSettings = { navController.navigate("settings") }
             )
         }

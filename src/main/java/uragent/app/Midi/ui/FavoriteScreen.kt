@@ -152,13 +152,6 @@ fun FavoriteItem(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                
-                if (midiFile.duration > 0) {
-                    Text(
-                        text = formatDuration(midiFile.duration),
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
             }
             
             // Favorite button

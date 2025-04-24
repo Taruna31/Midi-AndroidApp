@@ -2,50 +2,100 @@ package uragent.app.Midi
 
 import android.annotation.SuppressLint
 import android.bluetooth.BluetoothAdapter
-import android.bluetooth.BluetoothDevice
-import android.bluetooth.BluetoothSocket
+import android.bluetooth.BluetoothGatt
+import android.bluetooth.BluetoothGattCallback
+import android.bluetooth.BluetoothGattCharacteristic
+import android.bluetooth.BluetoothGattDescriptor
+import android.bluetooth.BluetoothGattService
+import android.bluetooth.BluetoothManager
+import android.bluetooth.BluetoothProfile
+import android.bluetooth.le.BluetoothLeScanner
+import android.bluetooth.le.ScanCallback
+import android.bluetooth.le.ScanResult
 import android.content.Context
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.withContext
 import uragent.app.Midi.utils.BluetoothHelper
-import java.io.IOException
-import java.io.InputStream
-import java.io.OutputStream
 import java.util.UUID
 import kotlinx.coroutines.withTimeout
-import uragent.app.Midi.models.MidiFile
 
-class BluetoothService(private val context: Context) {
-    private val TAG = "BluetoothService"
+class BleService(private val context: Context) {
+    private val TAG = "BleService"
 
-    // Standard SerialPortService ID
-    private val UUID_SPP = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
+    // BLE Service UUIDs
+    private val MIDI_SERVICE_UUID = UUID.fromString("03B80E5A-EDE8-4B33-A751-6CE34EC4C700")
+    private val MIDI_CHARACTERISTIC_UUID = UUID.fromString("7772E5DB-3868-4112-A1A9-F2669D106BF3")
+    private val CLIENT_CHARACTERISTIC_CONFIG = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
 
-    private var bluetoothAdapter: BluetoothAdapter? = BluetoothAdapter.getDefaultAdapter()
-    private var bluetoothSocket: BluetoothSocket? = null
-    private var outputStream: OutputStream? = null
-    private var inputStream: InputStream? = null
+    private var bluetoothGatt: BluetoothGatt? = null
+    private var midiCharacteristic: BluetoothGattCharacteristic? = null
     private var isConnected = false
 
     private val _connectionState = MutableStateFlow(false)
     val connectionState: StateFlow<Boolean> = _connectionState
 
-    val _receivedData = MutableStateFlow<String>("")
+    private val _receivedData = MutableStateFlow<String>("")
     val receivedData: StateFlow<String> = _receivedData
 
-    val _isPlaying = MutableStateFlow(false)
+    private val _isPlaying = MutableStateFlow(false)
     val isPlaying: StateFlow<Boolean> = _isPlaying
 
-    val _currentTempo = MutableStateFlow(1)
+    private val _currentTempo = MutableStateFlow(1)
     val currentTempo: StateFlow<Int> = _currentTempo
 
     private var listResponseDeferred: CompletableDeferred<String>? = null
     private val listMessages = StringBuilder()
+
+    private val gattCallback = object : BluetoothGattCallback() {
+        override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
+            when (newState) {
+                BluetoothProfile.STATE_CONNECTED -> {
+                    Log.i(TAG, "Connected to GATT server")
+                    isConnected = true
+                    _connectionState.value = true
+                    gatt.discoverServices()
+                }
+                BluetoothProfile.STATE_DISCONNECTED -> {
+                    Log.i(TAG, "Disconnected from GATT server")
+                    isConnected = false
+                    _connectionState.value = false
+                    gatt.close()
+                }
+            }
+        }
+
+        override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
+            if (status == BluetoothGatt.GATT_SUCCESS) {
+                val midiService = gatt.getService(MIDI_SERVICE_UUID)
+                midiService?.let { service ->
+                    midiCharacteristic = service.getCharacteristic(MIDI_CHARACTERISTIC_UUID)
+                    midiCharacteristic?.let { characteristic ->
+                        gatt.setCharacteristicNotification(characteristic, true)
+                        val descriptor = characteristic.getDescriptor(CLIENT_CHARACTERISTIC_CONFIG)
+                        descriptor?.let {
+                            it.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
+                            gatt.writeDescriptor(it)
+                        }
+                    }
+                }
+            }
+        }
+
+        override fun onCharacteristicChanged(
+            gatt: BluetoothGatt,
+            characteristic: BluetoothGattCharacteristic,
+            value: ByteArray
+        ) {
+            val message = String(value)
+            processMessage(message)
+        }
+    }
 
     @SuppressLint("MissingPermission")
     suspend fun connect(address: String): Boolean = withContext(Dispatchers.IO) {
@@ -59,66 +109,21 @@ class BluetoothService(private val context: Context) {
             return@withContext false
         }
 
-        bluetoothAdapter = BluetoothAdapter.getDefaultAdapter()
-        if (bluetoothAdapter == null || !bluetoothAdapter!!.isEnabled) {
+        val bluetoothManager = context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
+        val bluetoothAdapter = bluetoothManager.adapter
+
+        if (bluetoothAdapter == null || !bluetoothAdapter.isEnabled) {
             Log.e(TAG, "Bluetooth adapter is null or disabled")
             return@withContext false
         }
 
         try {
-            val device: BluetoothDevice = bluetoothAdapter!!.getRemoteDevice(address)
-            bluetoothAdapter!!.cancelDiscovery()
-            bluetoothSocket = device.createRfcommSocketToServiceRecord(UUID_SPP)
-            bluetoothSocket?.connect()
-
-            outputStream = bluetoothSocket?.outputStream
-            inputStream = bluetoothSocket?.inputStream
-
-            isConnected = true
-            _connectionState.value = true
-
-            startListening()
+            val device = bluetoothAdapter.getRemoteDevice(address)
+            bluetoothGatt = device.connectGatt(context, false, gattCallback)
             return@withContext true
-        } catch (e: IOException) {
+        } catch (e: Exception) {
             Log.e(TAG, "Failed to connect: ${e.message}")
-            close()
             return@withContext false
-        }
-    }
-
-    private suspend fun startListening() = withContext(Dispatchers.IO) {
-        if (inputStream == null) return@withContext
-
-        val buffer = ByteArray(1024)
-        val builder = StringBuilder()
-
-        while (isConnected) {
-            try {
-                val bytes = inputStream!!.read(buffer)
-                if (bytes > 0) {
-                    val data = String(buffer, 0, bytes)
-                    builder.append(data)
-
-                    // Process complete messages
-                    val messages = builder.toString().split("\n")
-                    builder.clear()
-                    
-                    // Keep the last partial message if any
-                    if (messages.lastOrNull()?.endsWith("\n") == false) {
-                        builder.append(messages.last())
-                    }
-
-                    // Process each complete message
-                    messages.filter { it.isNotBlank() }.forEach { message ->
-                        processMessage(message.trim())
-                    }
-                }
-            } catch (e: IOException) {
-                Log.e(TAG, "Error reading: ${e.message}")
-                isConnected = false
-                _connectionState.value = false
-                break
-            }
         }
     }
 
@@ -158,19 +163,18 @@ class BluetoothService(private val context: Context) {
     }
 
     fun sendCommand(command: String): Boolean {
-        if (!isConnected) {
-            Log.e(TAG, "Not connected")
+        if (!isConnected || midiCharacteristic == null) {
+            Log.e(TAG, "Not connected or characteristic not found")
             return false
         }
 
         return try {
-            outputStream?.write((command + "\n").toByteArray())
+            midiCharacteristic?.value = (command + "\n").toByteArray()
+            bluetoothGatt?.writeCharacteristic(midiCharacteristic)
             Log.d(TAG, "Sent: $command")
             true
-        } catch (e: IOException) {
+        } catch (e: Exception) {
             Log.e(TAG, "Error sending: ${e.message}")
-            isConnected = false
-            _connectionState.value = false
             false
         }
     }
@@ -201,7 +205,7 @@ class BluetoothService(private val context: Context) {
 
     fun adjustTemp(argument: String): Boolean {
         Log.i(TAG, "TEMP:$argument")
-        return sendCommand("$argument")
+        return sendCommand(argument)
     }
 
     suspend fun getMidiFiles(): List<MidiFile>? {
@@ -224,7 +228,7 @@ class BluetoothService(private val context: Context) {
             Log.e(TAG, "Timeout waiting for LIST_END")
             return null
         }
-        Log.d(TAG,"RAW DATA: $rawData")
+
         val collectedNames = mutableSetOf<String>()
         var tempo = _currentTempo.value
         var totalPages = 0
@@ -260,7 +264,6 @@ class BluetoothService(private val context: Context) {
         }
 
         if (receivedPages.size == totalPages) {
-            Log.d(TAG, "Collected files: $collectedNames")
             return collectedNames.map { MidiFile(name = it, temp = tempo) }
         }
 
@@ -273,11 +276,11 @@ class BluetoothService(private val context: Context) {
             isConnected = false
             _connectionState.value = false
             _isPlaying.value = false
-            inputStream?.close()
-            outputStream?.close()
-            bluetoothSocket?.close()
-        } catch (e: IOException) {
+            bluetoothGatt?.disconnect()
+            bluetoothGatt?.close()
+            bluetoothGatt = null
+        } catch (e: Exception) {
             Log.e(TAG, "Error closing: ${e.message}")
         }
     }
-}
+} 

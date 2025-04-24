@@ -20,7 +20,6 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -29,7 +28,6 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.ui.unit.IntOffset
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import kotlin.math.roundToInt
 
@@ -44,8 +42,7 @@ fun PlayerScreen(
     val isPlaying by viewModel.isPlaying.collectAsState()
     val backgroundImagePath by viewModel.backgroundImagePath.collectAsState()
     val tempo by viewModel.tempo.collectAsState()
-    val currentProgress by viewModel.currentProgress.collectAsState()
-    val totalDuration by viewModel.totalDuration.collectAsState()
+
 
     var showDeleteDialog by remember { mutableStateOf<MidiFile?>(null) }
     var showSongListDialog by remember { mutableStateOf(false) }
@@ -75,7 +72,7 @@ fun PlayerScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Player") },
+                title = { Text("Pemutar Lagu") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(
@@ -147,16 +144,11 @@ fun PlayerScreen(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "TEMPO: ${tempo ?: 5}",
+                            text = "TEMPO: ${tempo ?: 1}",
                             style = MaterialTheme.typography.titleMedium,
                             color = MaterialTheme.colorScheme.onSurface
                         )
                     }
-                    Text(
-                        text = "${currentProgress ?: 0} / ${totalDuration ?: 0}",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
                 }
 
                 Spacer(modifier = Modifier.height(32.dp))
@@ -185,6 +177,7 @@ fun PlayerScreen(
                     }
 
                     IconButton(
+
                         onClick = { showSongListDialog = true },
                         modifier = Modifier
                             .size(56.dp)
@@ -312,29 +305,29 @@ fun PlayerScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceEvenly
                 ) {
-                    Button(
-                        onClick = { /* Handle select upload */ },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.7f)
-                        ),
-                        modifier = Modifier
-                            .weight(1f)
-                            .padding(horizontal = 8.dp)
-                    ) {
-                        Text(stringResource(id = R.string.select_midi_to_upload))
-                    }
+//                    Button(
+//                        onClick = { /* Handle select upload */ },
+//                        colors = ButtonDefaults.buttonColors(
+//                            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.7f)
+//                        ),
+//                        modifier = Modifier
+//                            .weight(1f)
+//                            .padding(horizontal = 8.dp)
+//                    ) {
+//                        Text(stringResource(id = R.string.select_midi_to_upload))
+//                    }
 
-                    Button(
-                        onClick = { /* Handle upload */ },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.7f)
-                        ),
-                        modifier = Modifier
-                            .weight(1f)
-                            .padding(horizontal = 8.dp)
-                    ) {
-                        Text(stringResource(id = R.string.upload_nada))
-                    }
+//                    Button(
+//                        onClick = { /* Handle upload */ },
+//                        colors = ButtonDefaults.buttonColors(
+//                            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.7f)
+//                        ),
+//                        modifier = Modifier
+//                            .weight(1f)
+//                            .padding(horizontal = 8.dp)
+//                    ) {
+//                        Text(stringResource(id = R.string.upload_nada))
+//                    }
                 }
             }
         }
@@ -344,7 +337,7 @@ fun PlayerScreen(
     if (showSongListDialog) {
         AlertDialog(
             onDismissRequest = { showSongListDialog = false },
-            title = { Text("Song List") },
+            title = { Text("List Lagu") },
             text = {
                 Column(
                     modifier = Modifier
@@ -375,13 +368,6 @@ fun PlayerScreen(
                                         style = MaterialTheme.typography.titleMedium,
                                         color = MaterialTheme.colorScheme.onSurface
                                     )
-                                    if (midiFile.duration != null) {
-                                        Text(
-                                            text = "Duration: ${midiFile.duration} seconds",
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                                        )
-                                    }
                                 }
 
                                 Row {
@@ -416,7 +402,7 @@ fun PlayerScreen(
             },
             confirmButton = {
                 TextButton(onClick = { showSongListDialog = false }) {
-                    Text("Close")
+                    Text("Tutup")
                 }
             }
         )
@@ -426,8 +412,8 @@ fun PlayerScreen(
     showDeleteDialog?.let { midiFile ->
         AlertDialog(
             onDismissRequest = { showDeleteDialog = null },
-            title = { Text("Delete MIDI File") },
-            text = { Text("Are you sure you want to delete '${midiFile.name}'?") },
+            title = { Text("Hapus Lagu") },
+            text = { Text("Apakah kamu yakin akan menghapus'${midiFile.name}'?") },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -435,20 +421,20 @@ fun PlayerScreen(
                         showDeleteDialog = null
                     }
                 ) {
-                    Text("Delete")
+                    Text("Hapus")
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteDialog = null }) {
-                    Text("Cancel")
+                    Text("Batal")
                 }
             }
         )
     }
 }
 
-fun formatDuration(seconds: Int): String {
-    val minutes = seconds / 60
-    val remainingSeconds = seconds % 60
-    return "$minutes:${remainingSeconds.toString().padStart(2, '0')}"
-} 
+//fun formatDuration(seconds: Int): String {
+//    val minutes = seconds / 60
+//    val remainingSeconds = seconds % 60
+//    return "$minutes:${remainingSeconds.toString().padStart(2, '0')}"
+//}

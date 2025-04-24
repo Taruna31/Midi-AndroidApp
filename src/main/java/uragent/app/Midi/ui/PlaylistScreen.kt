@@ -1,30 +1,30 @@
 package uragent.app.Midi.ui
 
 import android.net.Uri
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import coil.compose.AsyncImage
-import kotlinx.coroutines.launch
 import uragent.app.Midi.BluetoothViewModel
+import uragent.app.Midi.R
 import uragent.app.Midi.models.MidiFile
 import uragent.app.Midi.models.Playlist
-import androidx.compose.foundation.Image
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.ui.graphics.ColorFilter
-import androidx.compose.ui.res.painterResource
-import uragent.app.Midi.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -35,9 +35,9 @@ fun PlaylistScreen(
     val playlists by viewModel.playlists.collectAsState()
     val midiFiles by viewModel.midiFiles.collectAsState()
     val backgroundImagePath by viewModel.backgroundImagePath.collectAsState()
-    val scope = rememberCoroutineScope()
 
     var showCreatePlaylistDialog by remember { mutableStateOf(false) }
+    var showPlaylistSongsDialog by remember { mutableStateOf<Playlist?>(null) }
     var showDeleteDialog by remember { mutableStateOf<Playlist?>(null) }
 
     Scaffold(
@@ -61,7 +61,7 @@ fun PlaylistScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer
+                    containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f)
                 )
             )
         }
@@ -73,8 +73,7 @@ fun PlaylistScreen(
                     model = Uri.parse(path),
                     contentDescription = "Background",
                     modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop,
-                    alpha = 0.5f
+                    contentScale = ContentScale.Crop
                 )
             }
 
@@ -85,27 +84,7 @@ fun PlaylistScreen(
                     .padding(16.dp)
             ) {
                 if (playlists.isEmpty()) {
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 8.dp)
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Text(
-                                text = "No playlists yet",
-                                style = MaterialTheme.typography.bodyLarge
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Button(onClick = { showCreatePlaylistDialog = true }) {
-                                Text("Create Playlist")
-                            }
-                        }
-                    }
+                    EmptyPlaylistView(onCreateClick = { showCreatePlaylistDialog = true })
                 } else {
                     Text(
                         text = "Your Playlists",
@@ -115,13 +94,9 @@ fun PlaylistScreen(
 
                     LazyColumn {
                         items(playlists) { playlist ->
-                            PlaylistItem(
+                            PlaylistCard(
                                 playlist = playlist,
-                                onPlay = {
-                                    scope.launch {
-                                        viewModel.startPlaylist(playlist)
-                                    }
-                                },
+                                onClick = { showPlaylistSongsDialog = playlist },
                                 onDelete = { showDeleteDialog = playlist }
                             )
                         }
@@ -143,6 +118,18 @@ fun PlaylistScreen(
         )
     }
 
+    // Show playlist songs dialog with play buttons
+    showPlaylistSongsDialog?.let { playlist ->
+        PlaylistSongsDialog(
+            playlist = playlist,
+            onDismiss = { showPlaylistSongsDialog = null },
+            onPlaySong = { midiFile ->
+                viewModel.playMidi(midiFile)
+                showPlaylistSongsDialog = null
+            }
+        )
+    }
+
     // Delete confirmation dialog
     showDeleteDialog?.let { playlist ->
         AlertDialog(
@@ -156,12 +143,12 @@ fun PlaylistScreen(
                         showDeleteDialog = null
                     }
                 ) {
-                    Text("Delete")
+                    Text("Hapus")
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteDialog = null }) {
-                    Text("Cancel")
+                    Text("Batal")
                 }
             }
         )
@@ -169,61 +156,85 @@ fun PlaylistScreen(
 }
 
 @Composable
-fun PlaylistItem(
+fun EmptyPlaylistView(onCreateClick: () -> Unit) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.7f)
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = "Belum ada playlist",
+                style = MaterialTheme.typography.bodyLarge
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Button(onClick = onCreateClick) {
+                Text("Buat Playlist")
+            }
+        }
+    }
+}
+
+@Composable
+fun PlaylistCard(
     playlist: Playlist,
-    onPlay: () -> Unit,
+    onClick: () -> Unit,
     onDelete: () -> Unit
 ) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp)
-            .clickable(onClick = onPlay)
+            .padding(vertical = 8.dp)
+            .clickable(onClick = onClick),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.7f)
+        )
     ) {
-        Column(
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp)
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.weight(1f)
             ) {
                 Image(
                     painter = painterResource(id = R.drawable.queuemusic),
                     contentDescription = null,
-                    colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.primary)
+                    colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.primary),
+                    modifier = Modifier.size(40.dp)
                 )
                 Spacer(modifier = Modifier.width(16.dp))
-                Text(
-                    text = playlist.name,
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.weight(1f)
-                )
-                IconButton(onClick = onDelete) {
-                    Icon(
-                        imageVector = Icons.Default.Delete,
-                        contentDescription = "Delete Playlist",
-                        tint = MaterialTheme.colorScheme.error
+                Column {
+                    Text(
+                        text = playlist.name,
+                        style = MaterialTheme.typography.titleLarge,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = "${playlist.files.size} songs",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = "${playlist.files.size} songs",
-                style = MaterialTheme.typography.bodyMedium
-            )
-
-            if (playlist.files.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "Songs: " + playlist.files.take(3).joinToString { it.name } +
-                            if (playlist.files.size > 3) "..." else "",
-                    style = MaterialTheme.typography.bodySmall,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+            IconButton(onClick = onDelete) {
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = "Delete Playlist",
+                    tint = MaterialTheme.colorScheme.error
                 )
             }
         }
@@ -251,7 +262,7 @@ fun CreatePlaylistDialog(
                     .padding(16.dp)
             ) {
                 Text(
-                    text = "Create Playlist",
+                    text = "Buat Playlist",
                     style = MaterialTheme.typography.titleLarge
                 )
 
@@ -260,7 +271,7 @@ fun CreatePlaylistDialog(
                 OutlinedTextField(
                     value = playlistName,
                     onValueChange = { playlistName = it },
-                    label = { Text("Playlist Name") },
+                    label = { Text("Nama Playlist") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
@@ -268,7 +279,7 @@ fun CreatePlaylistDialog(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 Text(
-                    text = "Select MIDI Files",
+                    text = "Plihan Lagu: ",
                     style = MaterialTheme.typography.titleMedium
                 )
 
@@ -286,36 +297,17 @@ fun CreatePlaylistDialog(
                             .height(250.dp)
                     ) {
                         items(availableMidiFiles) { midiFile ->
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        if (selectedFiles.contains(midiFile)) {
-                                            selectedFiles.remove(midiFile)
-                                        } else {
-                                            selectedFiles.add(midiFile)
-                                        }
+                            MidiFileItem(
+                                midiFile = midiFile,
+                                isSelected = selectedFiles.contains(midiFile),
+                                onToggleSelection = { isSelected ->
+                                    if (isSelected) {
+                                        selectedFiles.add(midiFile)
+                                    } else {
+                                        selectedFiles.remove(midiFile)
                                     }
-                                    .padding(8.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Checkbox(
-                                    checked = selectedFiles.contains(midiFile),
-                                    onCheckedChange = { checked ->
-                                        if (checked) {
-                                            selectedFiles.add(midiFile)
-                                        } else {
-                                            selectedFiles.remove(midiFile)
-                                        }
-                                    }
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = midiFile.name,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    modifier = Modifier.weight(1f)
-                                )
-                            }
+                                }
+                            )
                         }
                     }
                 }
@@ -327,7 +319,7 @@ fun CreatePlaylistDialog(
                     horizontalArrangement = Arrangement.End
                 ) {
                     TextButton(onClick = onDismiss) {
-                        Text("Cancel")
+                        Text("Batal")
                     }
                     Spacer(modifier = Modifier.width(8.dp))
                     Button(
@@ -338,9 +330,144 @@ fun CreatePlaylistDialog(
                         },
                         enabled = playlistName.isNotBlank() && selectedFiles.isNotEmpty()
                     ) {
-                        Text("Create")
+                        Text("Buat")
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+fun MidiFileItem(
+    midiFile: MidiFile,
+    isSelected: Boolean,
+    onToggleSelection: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onToggleSelection(!isSelected) }
+            .padding(8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Checkbox(
+            checked = isSelected,
+            onCheckedChange = { onToggleSelection(it) }
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(
+            text = midiFile.name,
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.weight(1f)
+        )
+    }
+}
+
+@Composable
+fun PlaylistSongsDialog(
+    playlist: Playlist,
+    onDismiss: () -> Unit,
+    onPlaySong: (MidiFile) -> Unit
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+            ) {
+                Text(
+                    text = "Lagu dari '${playlist.name}'",
+                    style = MaterialTheme.typography.titleLarge
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                if (playlist.files.isEmpty()) {
+                    Text(
+                        text = "No songs in this playlist",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                } else {
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(350.dp)
+                    ) {
+                        itemsIndexed(playlist.files) { index, midiFile ->
+                            SongItem(
+                                index = index + 1,
+                                midiFile = midiFile,
+                                onPlay = { onPlaySong(midiFile) }
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Button(
+                    onClick = onDismiss,
+                    modifier = Modifier.align(Alignment.End)
+                ) {
+                    Text("Close")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun SongItem(
+    index: Int,
+    midiFile: MidiFile,
+    onPlay: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f)
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "$index.",
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.width(28.dp)
+            )
+
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(
+                    text = midiFile.name,
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+
+            IconButton(
+                onClick = onPlay,
+                modifier = Modifier.padding(start = 8.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.PlayArrow,
+                    contentDescription = "Play",
+                    tint = MaterialTheme.colorScheme.primary
+                )
             }
         }
     }

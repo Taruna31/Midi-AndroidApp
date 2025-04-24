@@ -186,13 +186,6 @@ fun SearchResultItem(
                     text = midiFile.name,
                     style = MaterialTheme.typography.bodyLarge
                 )
-                
-                if (midiFile.duration > 0) {
-                    Text(
-                        text = formatDuration(midiFile.duration),
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
             }
             
             // Play button
