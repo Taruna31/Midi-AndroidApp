@@ -15,6 +15,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import kotlinx.coroutines.flow.StateFlow
 import uragent.app.Midi.BluetoothViewModel
 import uragent.app.Midi.R
 import uragent.app.Midi.models.MidiFile
@@ -29,6 +30,7 @@ fun SearchScreen(
     val searchQuery by viewModel.searchQuery.collectAsState()
     val connectionState by viewModel.connectionState.collectAsState()
     val backgroundImagePath by viewModel.backgroundImagePath.collectAsState()
+    val isPlaying by viewModel.isPlaying.collectAsState()
     
     var query by remember { mutableStateOf(searchQuery) }
     
@@ -94,7 +96,7 @@ fun SearchScreen(
                 OutlinedTextField(
                     value = query,
                     onValueChange = { query = it },
-                    label = { Text("Search MIDI Files") },
+                    label = { Text("Cari Lagu") },
                     leadingIcon = {
                         Icon(
                             imageVector = Icons.Default.Search,
@@ -134,7 +136,7 @@ fun SearchScreen(
                     }
                 } else {
                     Text(
-                        text = "Search Results (${filteredMidiFiles.size})",
+                        text = "Hasil Pencarian (${filteredMidiFiles.size})",
                         style = MaterialTheme.typography.titleMedium,
                         modifier = Modifier.padding(bottom = 8.dp)
                     )
@@ -143,7 +145,8 @@ fun SearchScreen(
                         items(filteredMidiFiles) { midiFile ->
                             SearchResultItem(
                                 midiFile = midiFile,
-                                onPlay = { viewModel.playMidi(midiFile) }
+                                viewModel = viewModel,
+                                isPlaying = isPlaying
                             )
                         }
                     }
@@ -156,7 +159,8 @@ fun SearchScreen(
 @Composable
 fun SearchResultItem(
     midiFile: MidiFile,
-    onPlay: () -> Unit
+    viewModel: BluetoothViewModel,
+    isPlaying: Boolean
 ) {
     Card(
         modifier = Modifier
@@ -187,12 +191,14 @@ fun SearchResultItem(
                     style = MaterialTheme.typography.bodyLarge
                 )
             }
-            
-            // Play button
-            IconButton(onClick = onPlay) {
+            IconButton(
+                onClick = {
+                    if (isPlaying) viewModel.stopPlayback() else viewModel.playMidi(midiFile)
+                }
+            ) {
                 Icon(
-                    imageVector = Icons.Default.PlayArrow,
-                    contentDescription = "Play",
+                    painter = if (isPlaying) painterResource(id = R.drawable.ic_stop) else painterResource(id = R.drawable.ic_play),
+                    contentDescription = if (isPlaying) "Stop" else "Play",
                     tint = MaterialTheme.colorScheme.primary
                 )
             }

@@ -55,7 +55,7 @@ fun SettingsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Settings") },
+                title = { Text("Pengaturan") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(
@@ -90,16 +90,16 @@ fun SettingsScreen(
             ) {
                 item {
                     Text(
-                        text = "App Settings",
+                        text = "Pengaturan Aplikasi",
                         style = MaterialTheme.typography.titleLarge,
                         modifier = Modifier.padding(bottom = 16.dp)
                     )
 
                     // Background image setting
                     SettingItem(
-                        title = "Change Background Image",
+                        title = "Ubah Background",
                         icon = Icons.Default.AccountBox,
-                        description = backgroundImagePath?.let { "Image selected" } ?: "No image selected",
+                        description = backgroundImagePath?.let { "Gambar dipilih" } ?: "Tidak ada gambar yang dipilih",
                         onClick = {
                             val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
                                 addCategory(Intent.CATEGORY_OPENABLE)
@@ -117,9 +117,9 @@ fun SettingsScreen(
 
                     // Bluetooth setting
                     SettingItem(
-                        title = "Bluetooth Connection",
+                        title = "Koneksi Bluetooth",
                         icon = Icons.Default.Build,
-                        description = if (connectionState) "Connected" else "Disconnected",
+                        description = if (connectionState) "Terhubung" else "Belum Terhubung",
                         onClick = {
                             viewModel.getAvailableDevices()
                             showBluetoothDialog = true
@@ -134,7 +134,7 @@ fun SettingsScreen(
 
                     // App info
                     Text(
-                        text = "About",
+                        text = "Tentang",
                         style = MaterialTheme.typography.titleMedium,
                         modifier = Modifier.padding(vertical = 8.dp)
                     )

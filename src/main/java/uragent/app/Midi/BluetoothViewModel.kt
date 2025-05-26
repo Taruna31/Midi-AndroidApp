@@ -16,15 +16,15 @@ import uragent.app.Midi.models.Playlist
 import kotlinx.coroutines.flow.update
 import android.app.Application
 import android.bluetooth.BluetoothManager
-import kotlinx.coroutines.delay
+//import kotlinx.coroutines.delay
 
 class BluetoothViewModel(application: Application) : AndroidViewModel(application) {
     private val TAG = "BluetoothViewModel"
 
-    private val bleService = BleService(application.applicationContext)
+    private val bluetoothService = BluetoothService(application.applicationContext)
 
     // Bluetooth connection state
-    val connectionState = bleService.connectionState
+    val connectionState = bluetoothService.connectionState
 
     // List of available Bluetooth devices
     private val _availableDevices = MutableStateFlow<List<BluetoothDevice>>(emptyList())
@@ -43,11 +43,11 @@ class BluetoothViewModel(application: Application) : AndroidViewModel(applicatio
     val currentMidi: StateFlow<MidiFile?> = _currentMidi.asStateFlow()
 
     // Playback state
-    val isPlaying = bleService.isPlaying
+    var isPlaying = bluetoothService.isPlaying
 
     // Current playlist
-    private val _currentPlaylist = MutableStateFlow<Playlist?>(null)
-    val currentPlaylist: StateFlow<Playlist?> = _currentPlaylist.asStateFlow()
+//    private val _currentPlaylist = MutableStateFlow<Playlist?>(null)
+//    val currentPlaylist: StateFlow<Playlist?> = _currentPlaylist.asStateFlow()
 
     // App background image path
     private val _backgroundImagePath = MutableStateFlow<String?>(null)
@@ -62,14 +62,17 @@ class BluetoothViewModel(application: Application) : AndroidViewModel(applicatio
     val filteredMidiFiles: StateFlow<List<MidiFile>> = _filteredMidiFiles.asStateFlow()
 
     // Current tempo
-    val tempo = bleService.currentTempo
+    var tempo = bluetoothService.currentTempo
 
     // Current progress
     private val _currentProgress = MutableStateFlow<Int?>(null)
-    val currentProgress: StateFlow<Int?> = _currentProgress.asStateFlow()
+//    val currentProgress: StateFlow<Int?> = _currentProgress.asStateFlow()
+
+    // Navigation state
+//    private val _showSongList = MutableStateFlow(false)
+//    val showSongList: StateFlow<Boolean> = _showSongList.asStateFlow()
 
     init {
-        // Start collecting received data from BleService
         refresh()
         synchronize()
     }
@@ -96,7 +99,7 @@ class BluetoothViewModel(application: Application) : AndroidViewModel(applicatio
 
     fun connectToESP32(address: String) {
         viewModelScope.launch {
-            val result = bleService.connect(address)
+            val result = bluetoothService.connect(address)
             if (result) {
                 requestMidiFilesList()
             }
@@ -104,7 +107,7 @@ class BluetoothViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     private fun requestMidiFilesList() {
-        bleService.sendCommand("LIST")
+        bluetoothService.sendCommand("LIST")
     }
 
     fun searchMidiFiles(query: String) {
@@ -115,13 +118,16 @@ class BluetoothViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     fun playMidi(midiFile: MidiFile) {
-        if (bleService.playMidi(midiFile)) {
+        stopPlayback()
+
+        if (bluetoothService.playMidi(midiFile)) {
             _currentMidi.value = midiFile
+            bluetoothService._isPlaying.value = true
         }
     }
 
     fun deleteMidi(midiFile: MidiFile) {
-        bleService.sendCommand("DELETE:${midiFile.name}")
+        bluetoothService.sendCommand("DELETE:${midiFile.name}")
 
         // Optimistically update the UI
         _midiFiles.update { files ->
@@ -148,14 +154,6 @@ class BluetoothViewModel(application: Application) : AndroidViewModel(applicatio
         savePlaylistsToStorage()
     }
 
-    fun startPlaylist(playlist: Playlist) {
-        _currentPlaylist.value = playlist
-
-        if (playlist.files.isNotEmpty()) {
-            playMidi(playlist.files.first())
-        }
-    }
-
     fun setBackgroundImage(imagePath: String) {
         _backgroundImagePath.value = imagePath
         saveBackgroundImagePath(imagePath)
@@ -174,16 +172,17 @@ class BluetoothViewModel(application: Application) : AndroidViewModel(applicatio
             currentMidi.value?.let { midi ->
                 playMidi(midi)
                 // Start progress updates
-                while (isPlaying.value) {
-                    delay(1000)
-                    _currentProgress.value = (_currentProgress.value ?: 0) + 1
-                }
+//                while (isPlaying.value) {
+//                    delay(1000)
+//                   _currentProgress.value = (_currentProgress.value ?: 0) + 1
+//                }
             }
         }
     }
 
     fun stopPlayback() {
-        bleService.stopMidi()
+        bluetoothService.stopMidi()
+        bluetoothService._isPlaying.value = false
         _currentProgress.value = 0
     }
 
@@ -192,9 +191,7 @@ class BluetoothViewModel(application: Application) : AndroidViewModel(applicatio
         if (currentIndex < midiFiles.value.size - 1) {
             _currentMidi.value = midiFiles.value[currentIndex + 1]
             _currentProgress.value = 0
-            if (isPlaying.value) {
-                startPlayback()
-            }
+            startPlayback()
         }
     }
 
@@ -203,16 +200,14 @@ class BluetoothViewModel(application: Application) : AndroidViewModel(applicatio
         if (currentIndex > 0) {
             _currentMidi.value = midiFiles.value[currentIndex - 1]
             _currentProgress.value = 0
-            if (isPlaying.value) {
-                startPlayback()
-            }
+            startPlayback()
         }
     }
 
     fun refresh() {
         viewModelScope.launch {
             getAvailableDevices()
-            bleService.getMidiFiles()?.let { files ->
+            bluetoothService.getMidiFiles()?.let { files ->
                 Log.i(TAG, "RECEIVED: $files")
                 _midiFiles.value = files
             }
@@ -221,7 +216,7 @@ class BluetoothViewModel(application: Application) : AndroidViewModel(applicatio
 
     fun synchronize() {
         viewModelScope.launch {
-            bleService.receivedData.collect { data ->
+            bluetoothService.receivedData.collect { data ->
                 when (data) {
                     "ISPLAYING" -> {
                         // Update UI to show playing state
@@ -242,6 +237,9 @@ class BluetoothViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     fun adjustTempo(change: Int) {
+        val currentTempo = tempo.value
+        val newTempo = (currentTempo + change).coerceIn(1, 9)
+        bluetoothService._currentTempo.value = newTempo
         // Update tempo on ESP32
         val tempChange = when {
             change > 0 -> "TEMPUP"
@@ -249,11 +247,11 @@ class BluetoothViewModel(application: Application) : AndroidViewModel(applicatio
             else -> return
         }
         
-        bleService.adjustTemp(tempChange)
+        bluetoothService.adjustTemp(tempChange)
     }
 
     override fun onCleared() {
         super.onCleared()
-        bleService.close()
+        bluetoothService.close()
     }
 }
